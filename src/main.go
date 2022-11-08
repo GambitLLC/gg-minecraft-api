@@ -2,6 +2,7 @@ package main
 
 import (
 	"bed.gg/minecraft-api/v2/api"
+	"bed.gg/minecraft-api/v2/config"
 	"bed.gg/minecraft-api/v2/logger"
 	"context"
 	"github.com/go-redis/redis/v9"
@@ -29,19 +30,20 @@ func main() {
 		DB:       0,  // use default DB
 	})
 
+	// -- setup the ip config --
+	var ipPool []net.IP
+
+	for _, ip := range config.Ip.Pool {
+		ipPool = append(ipPool, net.ParseIP(ip))
+	}
+
 	// -- create the api handler --
 	handler := &api.Handler{
 		Logger: lg,
 		Rdb:    rdb,
 		Ctx:    context.Background(),
-		IPPool: []net.IP{
-			net.ParseIP("10.0.0.4"),
-			net.ParseIP("10.0.0.5"),
-			net.ParseIP("10.0.0.6"),
-			net.ParseIP("10.0.0.7"),
-			net.ParseIP("10.0.0.8"),
-		},
-		IpIdx: 0,
+		IPPool: ipPool,
+		IpIdx:  0,
 	}
 
 	// -- fiber app --
