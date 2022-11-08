@@ -15,3 +15,4 @@ RUN CGO_ENABLED=0 go build -o build/gg-minecraft-api
 
 WORKDIR build/
 ENTRYPOINT ["/go/gambitdev/gg-minecraft-api/build/gg-minecraft-api"]
+EXPOSE 8080

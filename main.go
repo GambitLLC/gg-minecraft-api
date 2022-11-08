@@ -54,5 +54,5 @@ func main() {
 	//app.Get("/uuid/:username", handler.GetUUID)
 
 	// -- start the server --
-	lg.Fatal("%s", app.Listen(":80"))
+	lg.Fatal("%s", app.Listen(":8080"))
 }
