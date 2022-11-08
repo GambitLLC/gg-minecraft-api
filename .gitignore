@@ -16,4 +16,5 @@
 
 build/**
 !build/
-!build/ips.json
+!build/config
+!build/config/ips.json

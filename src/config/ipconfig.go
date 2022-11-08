@@ -14,7 +14,7 @@ type Config struct {
 }
 
 func init() {
-	f, err := os.Open("ips.json")
+	f, err := os.Open("config/ips.json")
 
 	if err != nil {
 		panic(err)

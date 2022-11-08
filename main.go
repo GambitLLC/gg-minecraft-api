@@ -15,6 +15,8 @@ func main() {
 	// -- create a new logger --
 	lg := logger.NewLogger()
 
+	println(net.InterfaceAddrs())
+
 	//-- defer flushing writes --
 	defer func(logger *zap.Logger) {
 		err := logger.Sync()
@@ -25,7 +27,7 @@ func main() {
 
 	// -- connect to redis --
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     "redis:6379",
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
