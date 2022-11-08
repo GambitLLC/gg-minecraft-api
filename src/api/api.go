@@ -1,7 +1,7 @@
 package api
 
 import (
-	"bed.gg/minecraft-api/v2/logger"
+	"bed.gg/minecraft-api/v2/src/logger"
 	"context"
 	"encoding/json"
 	"fmt"

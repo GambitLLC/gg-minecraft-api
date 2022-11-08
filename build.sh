@@ -1,1 +1,1 @@
-(cd src && go build -o ../build/gg-minecraft-api)
+go build -o build/gg-minecraft-api

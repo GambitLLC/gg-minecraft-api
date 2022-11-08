@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bed.gg/minecraft-api/v2/api"
-	"bed.gg/minecraft-api/v2/config"
-	"bed.gg/minecraft-api/v2/logger"
+	"bed.gg/minecraft-api/v2/src/api"
+	"bed.gg/minecraft-api/v2/src/config"
+	"bed.gg/minecraft-api/v2/src/logger"
 	"context"
 	"github.com/go-redis/redis/v9"
 	"github.com/gofiber/fiber/v2"
