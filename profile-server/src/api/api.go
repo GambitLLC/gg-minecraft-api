@@ -1,17 +1,18 @@
 package api
 
 import (
-	"bed.gg/minecraft-api/v2/src/logger"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"regexp"
+	"sync/atomic"
+
+	"bed.gg/minecraft-api/v2/src/logger"
 	"github.com/go-redis/redis/v9"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
-	"net"
-	"regexp"
-	"sync/atomic"
 )
 
 type Handler struct {
@@ -93,7 +94,11 @@ func (h *Handler) fetchMojang(formatUrl string, args ...interface{}) (int, []byt
 	req.SetRequestURI(fmt.Sprintf(formatUrl, args...))
 
 	if err := a.Parse(); err != nil {
-		h.Logger.Error("%v", err)
+
+		if h.Logger != nil {
+			h.Logger.Error("%v", err)
+		}
+
 		return fiber.StatusInternalServerError, nil, []error{err}
 	}
 
@@ -105,7 +110,9 @@ func (h *Handler) fetchMojang(formatUrl string, args ...interface{}) (int, []byt
 			},
 		}
 
-		h.Logger.Info("Dialing %s from %s", fmt.Sprintf(formatUrl, args...), customDialer.LocalAddr.String())
+		if h.Logger != nil {
+			h.Logger.Info("Dialing %s from %s", fmt.Sprintf(formatUrl, args...), customDialer.LocalAddr.String())
+		}
 
 		a.HostClient.Dial = func(addr string) (net.Conn, error) {
 			return customDialer.Dial(addr)
