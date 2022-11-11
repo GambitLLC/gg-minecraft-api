@@ -1,22 +1,21 @@
 package main
 
 import (
+	"context"
+	"net"
+
 	"bed.gg/minecraft-api/v2/src/api"
 	"bed.gg/minecraft-api/v2/src/config"
 	"bed.gg/minecraft-api/v2/src/logger"
-	"context"
 	"github.com/go-redis/redis/v9"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"go.uber.org/zap"
-	"net"
 )
 
 func main() {
 	// -- create a new logger --
 	lg := logger.NewLogger()
-
-	println(net.InterfaceAddrs())
 
 	//-- defer flushing writes --
 	defer func(logger *zap.Logger) {
