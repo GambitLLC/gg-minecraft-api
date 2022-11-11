@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -49,6 +50,16 @@ func isValidUUID(u string) bool {
 // isValidUsername helper method to check if the provided username is a valid minecraft username
 func isValidUsername(u string) bool {
 	matched, err := regexp.Match("^[a-zA-Z0-9_]{2,16}$", []byte(u))
+
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+
+func isValidTextureId(id string) bool {
+	matched, err := regexp.Match("^[a-fA-F0-9]+$", []byte(id))
 
 	if err != nil {
 		return false
@@ -166,4 +177,20 @@ func (h *Handler) FetchUUID(username string) (int, *UsernameResponse, []byte, []
 	}
 
 	return code, usernameResponse, body, []error{}
+}
+
+// FetchTexture fetches the texture as a base64 string from mojang api
+func (h *Handler) FetchTexture(textureid string) (int, string, []byte, []error) {
+	code, body, errs := h.fetchMojang("https://textures.minecraft.net/texture/%s", textureid)
+
+	if len(errs) > 0 {
+		return code, "", nil, errs
+	}
+
+	if code != fiber.StatusOK {
+		return code, "", nil, errs
+	}
+
+	//encode the texture to base64 and return the encoded string
+	return code, base64.StdEncoding.EncodeToString(body), body, []error{}
 }
