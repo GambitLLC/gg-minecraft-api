@@ -46,6 +46,13 @@ func main() {
 
 	apiHandler := api.Handler{}
 
+	//how to fetch texture from mojang api
+	code, base64Texture, body, errs := apiHandler.FetchTexture("b0cc08840700447322d953a02b965f1d65a13a603bf64b17c803c21446fe1635")
+	_ = code
+	_ = base64Texture
+	_ = body
+	_ = errs
+
 	limit := make(chan struct{}, 2)
 
 	//temporary initial sleep time for hao's machine
