@@ -1,7 +1,7 @@
 version: "3.3"
 services:
   gg-minecraft-api:
-    build: .
+    build: ./profile-server
     image: bedggcr.azurecr.io/gg-minecraft-api
     ports:
       - 80:8080
