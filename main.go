@@ -7,6 +7,7 @@ import (
 	"context"
 	"github.com/go-redis/redis/v9"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"go.uber.org/zap"
 	"net"
 )
@@ -51,9 +52,15 @@ func main() {
 	// -- fiber app --
 	app := fiber.New()
 
+	//setup cors
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "https://bed.gg, https://www.bed.gg, http://localhost:3000, http://127.0.0.1:3000",
+		AllowHeaders: "Origin, Content-Type, Accept",
+	}))
+
 	// -- register routes --
 	app.Get("/profile/:uuid", handler.GetProfile)
-	//app.Get("/uuid/:username", handler.GetUUID)
+	app.Get("/texture/:textureid", handler.GetTexture)
 
 	// -- start the server --
 	lg.Fatal("%s", app.Listen(":8080"))

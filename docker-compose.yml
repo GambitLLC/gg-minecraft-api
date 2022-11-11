@@ -1,14 +1,13 @@
-version: "3.9"
+version: "3.3"
 services:
   gg-minecraft-api:
     build: .
+    image: bedggcr.azurecr.io/gg-minecraft-api
     ports:
       - 80:8080
-    volumes:
-      - ./config/:/go/gambitdev/gg-minecraft-api/build/config/
     depends_on:
       - redis
   redis:
     image: redis
     ports:
-      - "6379:6379"
+      - 6379:6379
