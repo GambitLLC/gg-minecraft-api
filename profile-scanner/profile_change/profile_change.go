@@ -46,13 +46,6 @@ func main() {
 
 	apiHandler := api.Handler{}
 
-	//how to fetch texture from mojang api
-	code, base64Texture, body, errs := apiHandler.FetchTexture("b0cc08840700447322d953a02b965f1d65a13a603bf64b17c803c21446fe1635")
-	_ = code
-	_ = base64Texture
-	_ = body
-	_ = errs
-
 	limit := make(chan struct{}, 2)
 
 	//temporary initial sleep time for hao's machine
@@ -65,43 +58,43 @@ func main() {
 		fmt.Printf("incremented sleepTime: %d\n", sleepTime)
 	}
 
-	for {
-		for _, id := range uuidList {
+	for _, id := range uuidList {
 
-			limit <- struct{}{}
+		limit <- struct{}{}
 
-			go func(id string) {
-				code, profile, _, errs := apiHandler.FetchProfile(id)
-				if code == fiber.StatusTooManyRequests {
-					fmt.Println("429 received")
+		go func(id string) {
+			code, profile, _, errs := apiHandler.FetchProfile(id)
+			if code == fiber.StatusTooManyRequests {
+				fmt.Println("429 received")
 
-					//after debounce
-					debounced(increment)
+				//after debounce
+				debounced(increment)
 
-				} else {
-					fmt.Println(code, sleepTime)
-				}
+			} else {
+				fmt.Println(code, sleepTime)
+			}
 
-				// TODO: handle errs
-				_ = errs
+			// TODO: handle errs
+			_ = errs
 
-				// TODO: parse textures from profile.Properties
-				_ = profile
+			// TODO: parse textures from profile.Properties
+			_ = profile
+			println(profile)
 
-				// TODO: populate doc with Textures
-				doc := Document{
-					Id:   profile.Id,
-					Name: profile.Name,
-					// Textures: Textures{},
-				}
+			// TODO: populate doc with Textures
+			doc := Document{
+				Id:   profile.Id,
+				Name: profile.Name,
+				// Textures: Textures{},
+			}
 
-				// TODO: check if received doc differs from what is saved in db
-				_ = doc
+			// TODO: check if received doc differs from what is saved in db
+			_ = doc
 
-				<-limit
-			}(id)
+			<-limit
+		}(id)
 
-			time.Sleep(time.Duration(sleepTime) * time.Millisecond)
-		}
+		time.Sleep(time.Duration(sleepTime) * time.Millisecond)
 	}
+
 }
