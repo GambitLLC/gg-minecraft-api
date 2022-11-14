@@ -59,7 +59,9 @@ func main() {
 
 	// -- register routes --
 	app.Get("/profile/:uuid", handler.GetProfile)
+	app.Get("/profiles", handler.GetProfiles)
 	app.Get("/texture/:textureid", handler.GetTexture)
+	app.Get("/textures", handler.GetTextures)
 
 	// -- start the server --
 	lg.Fatal("%s", app.Listen(":8080"))

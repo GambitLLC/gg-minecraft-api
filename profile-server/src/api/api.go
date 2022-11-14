@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"sync"
 	"sync/atomic"
 
 	"bed.gg/minecraft-api/v2/src/logger"
@@ -41,6 +42,30 @@ type UsernameResponse struct {
 	ErrorMessage string `json:"errorMessage"`
 }
 
+type MultiProfileResponse struct {
+	Code    int
+	Profile *ProfileResponse
+	Body    []byte
+	Errs    []error
+	Id      string
+}
+
+type MultiTextureResponse struct {
+	Code          int
+	Base64Texture string
+	Body          []byte
+	Errs          []error
+	Id            string
+}
+
+type TexturesBody struct {
+	Textures []string `json:"textures"`
+}
+
+type UUIDSBody struct {
+	UUIDS []string `json:"uuids"`
+}
+
 // isValidUUID helper method to check if the provided uuid is a valid minecraft uuid
 func isValidUUID(u string) bool {
 	_, err := uuid.Parse(u)
@@ -58,6 +83,7 @@ func isValidUsername(u string) bool {
 	return matched
 }
 
+// isValidTextureId helper method to check if the provided textureid is in a valid format
 func isValidTextureId(id string) bool {
 	matched, err := regexp.Match("^[a-fA-F0-9]+$", []byte(id))
 
@@ -156,6 +182,43 @@ func (h *Handler) FetchProfile(playerUUID string) (int, *ProfileResponse, []byte
 	return code, profileResponse, body, []error{}
 }
 
+// FetchProfiles fetches multiple profile jsons concurrently from the mojang api and returns an array of MultiProfileResponse
+func (h *Handler) FetchProfiles(uuids []string) []*MultiProfileResponse {
+	responses := make(chan *MultiProfileResponse, len(uuids))
+
+	wg := &sync.WaitGroup{}
+	wg.Add(len(uuids))
+
+	for _, playerUUID := range uuids {
+		go func(playerUUID string, h *Handler, wg *sync.WaitGroup, responses chan *MultiProfileResponse) {
+			defer wg.Done()
+
+			code, profileResponse, body, errs := h.FetchProfile(playerUUID)
+
+			response := &MultiProfileResponse{
+				Code:    code,
+				Profile: profileResponse,
+				Body:    body,
+				Errs:    errs,
+				Id:      playerUUID,
+			}
+
+			responses <- response
+
+		}(playerUUID, h, wg, responses)
+	}
+
+	wg.Wait()
+	close(responses)
+
+	var arr []*MultiProfileResponse
+	for response := range responses {
+		arr = append(arr, response)
+	}
+
+	return arr
+}
+
 // FetchUUID fetches the username json from mojang api and returns a UsernameResponse
 func (h *Handler) FetchUUID(username string) (int, *UsernameResponse, []byte, []error) {
 	code, body, errs := h.fetchMojang("https://api.mojang.com/users/profiles/minecraft/%s", username)
@@ -193,4 +256,41 @@ func (h *Handler) FetchTexture(textureid string) (int, string, []byte, []error) 
 
 	//encode the texture to base64 and return the encoded string
 	return code, base64.StdEncoding.EncodeToString(body), body, []error{}
+}
+
+// FetchTextures fetches multiple textures concurrently from the mojang api and returns an array of MultiTextureResponse
+func (h *Handler) FetchTextures(textureids []string) []*MultiTextureResponse {
+	responses := make(chan *MultiTextureResponse, len(textureids))
+
+	wg := &sync.WaitGroup{}
+	wg.Add(len(textureids))
+
+	for _, textureid := range textureids {
+		go func(textureid string, h *Handler, wg *sync.WaitGroup, responses chan *MultiTextureResponse) {
+			defer wg.Done()
+
+			code, base64Texture, body, errs := h.FetchTexture(textureid)
+
+			response := &MultiTextureResponse{
+				Code:          code,
+				Base64Texture: base64Texture,
+				Body:          body,
+				Errs:          errs,
+				Id:            textureid,
+			}
+
+			responses <- response
+
+		}(textureid, h, wg, responses)
+	}
+
+	wg.Wait()
+	close(responses)
+
+	var arr []*MultiTextureResponse
+	for response := range responses {
+		arr = append(arr, response)
+	}
+
+	return arr
 }
