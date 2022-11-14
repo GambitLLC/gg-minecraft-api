@@ -92,7 +92,7 @@ func (h *Handler) GetProfiles(c *fiber.Ctx) error {
 
 	//check if all uuids are valid
 	for _, playerUUID := range uuids {
-		if !isValidTextureId(playerUUID) {
+		if !isValidUUID(playerUUID) {
 			return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("bad uuid: %s", playerUUID))
 		}
 	}
