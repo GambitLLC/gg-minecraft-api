@@ -2,7 +2,7 @@ version: "3.3"
 services:
   gg-minecraft-api:
     build: ./profile-server
-    image: bedggcr.azurecr.io/gg-minecraft-api
+    image: gambitdev/bedgg-minecraft-api:latest
     ports:
       - 80:8080
     depends_on:

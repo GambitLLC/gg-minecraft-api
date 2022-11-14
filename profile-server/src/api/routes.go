@@ -30,6 +30,7 @@ func (h *Handler) GetProfile(c *fiber.Ctx) error {
 			//cache hit
 			h.Logger.Info("[%s] Cache Hit for [%s]", playerUUID, remoteAddr)
 			c.Status(fiber.StatusOK)
+			c.Set(fiber.HeaderCacheControl, fmt.Sprintf("private, max-age=%d", int32(TTL.Seconds())))
 			return c.SendString(item)
 		} else {
 			//cache miss
@@ -69,6 +70,11 @@ func (h *Handler) GetProfile(c *fiber.Ctx) error {
 			}
 
 			c.Status(code)
+
+			if code == fiber.StatusOK {
+				c.Set(fiber.HeaderCacheControl, fmt.Sprintf("private, max-age=%d", int32(TTL.Seconds())))
+			}
+
 			return c.Send(profileResponseString)
 		}
 	} else {
@@ -182,6 +188,8 @@ func (h *Handler) GetProfiles(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "json Marhsal for mojang response failed")
 	}
 
+	c.Status(200)
+	c.Set(fiber.HeaderCacheControl, fmt.Sprintf("private, max-age=%d", int32(TTL.Seconds())))
 	return c.Send(out)
 }
 
@@ -233,10 +241,16 @@ func (h *Handler) GetTexture(c *fiber.Ctx) error {
 			}
 
 			c.Status(code)
+
+			if code == fiber.StatusOK {
+				c.Set(fiber.HeaderCacheControl, fmt.Sprintf("private, max-age=%d", int32(TTL.Seconds())))
+			}
+
 			return c.SendString(textureBase64)
 
 		case nil:
 			h.Logger.Info("[%s] Cache Hit for [%s]", textureid, remoteAddr)
+			c.Set(fiber.HeaderCacheControl, fmt.Sprintf("private, max-age=%d", int32(TTL.Seconds())))
 			c.Status(fiber.StatusOK)
 			return c.SendString(item)
 
@@ -348,5 +362,7 @@ func (h *Handler) GetTextures(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "json Marhsal for mojang response failed")
 	}
 
+	c.Set(fiber.HeaderCacheControl, fmt.Sprintf("private, max-age=%d", int32(TTL.Seconds())))
+	c.Status(fiber.StatusOK)
 	return c.Send(out)
 }
