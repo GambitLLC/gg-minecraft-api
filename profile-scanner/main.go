@@ -1,13 +1,40 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	"bed.gg/minecraft-api/v2/src/api"
+	"encoding/base64"
 	"github.com/bep/debounce"
 	"github.com/gofiber/fiber/v2"
+	"github.com/meilisearch/meilisearch-go"
 )
+
+type TextureResponse struct {
+	Timestamp         int64  `json:"timestamp"`
+	ProfileId         string `json:"profileId"`
+	ProfileName       string `json:"profileName"`
+	SignatureRequired bool   `json:"signatureRequired"`
+	Textures          struct {
+		Skin SkinURL `json:"SKIN"`
+		Cape CapeURL `json:"CAPE"`
+	} `json:"textures"`
+}
+
+type SkinURL struct {
+	Url      string `json:"url"`
+	Metadata struct {
+		Model string `json:"model"`
+	} `json:"metadata"`
+}
+
+type CapeURL struct {
+	Url string `json:"url"`
+}
 
 type Document struct {
 	Id       string   `json:"id"`
@@ -16,13 +43,12 @@ type Document struct {
 }
 
 type Textures struct {
-	Skin *Skin `json:"skin,omitempty"`
-	Cape *Cape `json:"cape,omitempty"`
+	Skin Skin `json:"skin,omitempty"`
+	Cape Cape `json:"cape,omitempty"`
 }
 
 type Skin struct {
-	Data  string `json:"data"`
-	Model string `json:"model,omitempty"`
+	Data string `json:"data"`
 }
 
 type Cape struct {
@@ -30,6 +56,14 @@ type Cape struct {
 }
 
 func main() {
+	//meilisearch client
+	client := meilisearch.NewClient(meilisearch.ClientConfig{
+		Host: "http://127.0.0.1:7700",
+	})
+
+	//set the index
+	index := client.Index("players")
+
 	//construct a list of uuids
 	uuidList := []string{
 		"e71be459-ee50-4ec8-93dd-0dfce4a5efd6",
@@ -42,16 +76,10 @@ func main() {
 		"4c40404c-4f3e-4bf4-b937-b2602e61bddf",
 		"a977b265-6e80-4bd2-be45-be58084b1f8d",
 		"f7c77d99-9f15-4a66-a87d-c4a51ef30d19",
+		"9032ea59-caa1-4489-a167-c19a32f9771d",
 	}
 
 	apiHandler := api.Handler{}
-
-	//how to fetch texture from mojang api
-	code, base64Texture, body, errs := apiHandler.FetchTexture("b0cc08840700447322d953a02b965f1d65a13a603bf64b17c803c21446fe1635")
-	_ = code
-	_ = base64Texture
-	_ = body
-	_ = errs
 
 	limit := make(chan struct{}, 2)
 
@@ -65,40 +93,141 @@ func main() {
 		fmt.Printf("incremented sleepTime: %d\n", sleepTime)
 	}
 
+	wg := &sync.WaitGroup{}
+
 	for {
 		for _, id := range uuidList {
+			wg.Add(1)
 
 			limit <- struct{}{}
 
 			go func(id string) {
+				defer func() {
+					<-limit
+					wg.Done()
+				}()
+
+				//fetch the profile based on the uuid from mojang
 				code, profile, _, errs := apiHandler.FetchProfile(id)
+
+				if len(errs) != 0 {
+					//TODO: Requeue for lookup again
+					for _, err := range errs {
+						fmt.Println(err)
+					}
+
+					return
+				}
+
 				if code == fiber.StatusTooManyRequests {
 					fmt.Println("429 received")
 
 					//after debounce
 					debounced(increment)
 
-				} else {
-					fmt.Println(code, sleepTime)
+					return
 				}
 
-				// TODO: handle errs
-				_ = errs
+				if code == fiber.StatusOK {
+					//parse textures from profile.Properties
+					texturesDataBase64String := profile.Properties[0].Value
+					textureDataJsonString, _ := base64.StdEncoding.DecodeString(texturesDataBase64String)
 
-				// TODO: parse textures from profile.Properties
-				_ = profile
+					textureResponse := &TextureResponse{}
+					_ = json.Unmarshal(textureDataJsonString, textureResponse)
 
-				// TODO: populate doc with Textures
-				doc := Document{
-					Id:   profile.Id,
-					Name: profile.Name,
-					// Textures: Textures{},
+					skinResponse := ""
+					capeResponse := ""
+
+					//fetch the textures from mojang
+					if textureResponse.Textures.Skin.Url != "" {
+						splitString := strings.Split(textureResponse.Textures.Skin.Url, "/")
+						textureid := splitString[len(splitString)-1]
+						_, skinResponse, _, errs = apiHandler.FetchTexture(textureid)
+
+						if len(errs) != 0 {
+							//TODO: Requeue for lookup again
+							for _, err := range errs {
+								fmt.Println(err)
+							}
+
+							return
+						}
+					}
+
+					if textureResponse.Textures.Cape.Url != "" {
+						splitString := strings.Split(textureResponse.Textures.Cape.Url, "/")
+						textureid := splitString[len(splitString)-1]
+						_, capeResponse, _, errs = apiHandler.FetchTexture(textureid)
+
+						if len(errs) != 0 {
+							//TODO: Requeue for lookup again
+							for _, err := range errs {
+								fmt.Println(err)
+							}
+
+							return
+						}
+					}
+
+					//populate doc with Textures
+					doc := Document{
+						Id:   profile.Id,
+						Name: profile.Name,
+						Textures: Textures{
+							Skin: Skin{
+								Data: skinResponse,
+							},
+							Cape: Cape{
+								Data: capeResponse,
+							},
+						},
+					}
+
+					//check if the doc differs from what is in meilisearch
+					searchRes, err := index.Search(profile.Id, &meilisearch.SearchRequest{
+						Limit: 1,
+					})
+
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+
+					if len(searchRes.Hits) == 1 {
+						//document exists, check for differences before updating meilisearch
+						searchJsonString, _ := json.Marshal(searchRes.Hits[0])
+						foundDoc := &Document{}
+						_ = json.Unmarshal(searchJsonString, foundDoc)
+
+						if doc.Name != foundDoc.Name || doc.Textures.Skin.Data != foundDoc.Textures.Skin.Data || doc.Textures.Cape.Data != foundDoc.Textures.Cape.Data {
+							//updating doc to meilisearch, doc data differs from foundDoc
+							var docs = [1]Document{doc}
+
+							task, err := index.AddDocuments(docs)
+
+							if err != nil {
+								fmt.Println(err)
+								return
+							}
+
+							fmt.Printf("Updating doc (%s): %d\n", doc.Id, task.TaskUID)
+						}
+
+					} else {
+						//adding doc to meilisearch, doc does not exist
+						var docs = [1]Document{doc}
+
+						task, err := index.AddDocuments(docs)
+
+						if err != nil {
+							fmt.Println(err)
+							return
+						}
+
+						fmt.Printf("Creating doc (%s): %d\n", doc.Id, task.TaskUID)
+					}
 				}
-
-				// TODO: check if received doc differs from what is saved in db
-				_ = doc
-
-				<-limit
 			}(id)
 
 			time.Sleep(time.Duration(sleepTime) * time.Millisecond)
