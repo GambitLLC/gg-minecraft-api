@@ -2,10 +2,11 @@ package api
 
 import (
 	"github.com/go-redis/redis/v9"
+	"time"
 )
 
-func (h *Handler) cachePut(key string, value string) error {
-	err := h.Rdb.Set(h.Ctx, key, value, TTL).Err()
+func (h *Handler) CachePut(key string, value string, ttl time.Duration) error {
+	err := h.Rdb.Set(h.Ctx, key, value, ttl).Err()
 
 	if err != nil {
 		h.Logger.Error("[%s] Failed to cache item: %v", key, err)
@@ -14,7 +15,7 @@ func (h *Handler) cachePut(key string, value string) error {
 	return err
 }
 
-func (h *Handler) cacheGet(key string) (bool, string, error) {
+func (h *Handler) CacheGet(key string) (bool, string, error) {
 	item, err := h.Rdb.Get(h.Ctx, key).Result()
 
 	switch err {

@@ -16,9 +16,9 @@ func (h *Handler) GetProfile(c *fiber.Ctx) error {
 
 	h.Logger.Info("%s GET /profile/%s", remoteAddr, playerUUID)
 
-	if isValidUUID(playerUUID) {
+	if IsValidUUID(playerUUID) {
 		//check if the profile exists in redis already and is not expired
-		exists, item, err := h.cacheGet(playerUUID)
+		exists, item, err := h.CacheGet(playerUUID)
 
 		//check if a redis error occurred
 		if err != nil {
@@ -64,7 +64,7 @@ func (h *Handler) GetProfile(c *fiber.Ctx) error {
 			}
 
 			//cache the profile
-			err = h.cachePut(playerUUID, string(profileResponseString))
+			err = h.CachePut(playerUUID, string(profileResponseString), TTL)
 			if err != nil {
 				h.Logger.Error("[%s] Failed to cache profile: %v", playerUUID, err)
 			}
@@ -98,7 +98,7 @@ func (h *Handler) GetProfiles(c *fiber.Ctx) error {
 
 	//check if all uuids are valid
 	for _, playerUUID := range uuids {
-		if !isValidUUID(playerUUID) {
+		if !IsValidUUID(playerUUID) {
 			return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("bad uuid: %s", playerUUID))
 		}
 	}
@@ -109,7 +109,7 @@ func (h *Handler) GetProfiles(c *fiber.Ctx) error {
 
 	//check for cached uuids
 	for _, playerUUID := range uuids {
-		exists, item, err := h.cacheGet(playerUUID)
+		exists, item, err := h.CacheGet(playerUUID)
 
 		//check if a redis error occured
 		if err != nil {
@@ -174,7 +174,7 @@ func (h *Handler) GetProfiles(c *fiber.Ctx) error {
 		for _, response := range responses {
 			profileBodyArray = append(profileBodyArray, response.Profile)
 
-			err := h.cachePut(response.Id, string(response.Body))
+			err := h.CachePut(response.Id, string(response.Body), TTL)
 			if err != nil {
 				h.Logger.Error("[%s] Failed to cache profile: %v", response.Id, err)
 			}
@@ -237,7 +237,7 @@ func (h *Handler) GetTexture(c *fiber.Ctx) error {
 			err = h.Rdb.Set(h.Ctx, textureid, textureBase64, TTL).Err()
 
 			if err != nil {
-				h.Logger.Error("[%s] Failed to cache profile: %v", textureid, err)
+				h.Logger.Error("[%s] Failed to cache texture: %v", textureid, err)
 			}
 
 			c.Status(code)
@@ -291,7 +291,7 @@ func (h *Handler) GetTextures(c *fiber.Ctx) error {
 
 	//check for cached textureids
 	for _, textureid := range textureids {
-		exists, item, err := h.cacheGet(textureid)
+		exists, item, err := h.CacheGet(textureid)
 
 		//check if a redis error occured
 		if err != nil {
@@ -348,7 +348,7 @@ func (h *Handler) GetTextures(c *fiber.Ctx) error {
 		for _, response := range responses {
 			base64TextureArray = append(base64TextureArray, response.Base64Texture)
 
-			err := h.cachePut(response.Id, response.Base64Texture)
+			err := h.CachePut(response.Id, response.Base64Texture, TTL)
 			if err != nil {
 				h.Logger.Error("[%s] Failed to cache profile: %v", response.Id, err)
 			}

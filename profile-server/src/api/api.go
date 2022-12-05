@@ -66,8 +66,8 @@ type UUIDSBody struct {
 	UUIDS []string `json:"uuids"`
 }
 
-// isValidUUID helper method to check if the provided uuid is a valid minecraft uuid
-func isValidUUID(u string) bool {
+// IsValidUUID helper method to check if the provided uuid is a valid minecraft uuid
+func IsValidUUID(u string) bool {
 	_, err := uuid.Parse(u)
 	return err == nil
 }

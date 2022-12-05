@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bed.gg/minecraft-api/v2/src/logger"
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/go-redis/redis/v9"
+	"go.uber.org/zap"
 	"strings"
 	"sync"
 	"time"
@@ -56,13 +60,49 @@ type Cape struct {
 }
 
 func main() {
-	//meilisearch client
-	client := meilisearch.NewClient(meilisearch.ClientConfig{
-		Host: "http://127.0.0.1:7700",
+	// -- create a new logger --
+	lg := logger.NewLogger()
+
+	//-- defer flushing writes --
+	defer func(logger *zap.Logger) {
+		err := logger.Sync()
+		if err != nil {
+			panic(err)
+		}
+	}(lg.Logger)
+
+	// -- connect to redis --
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "redis-store:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
 	})
 
-	//set the index
+	// -- create the api handler --
+	handler := api.Handler{
+		Logger: lg,
+		Rdb:    rdb,
+		Ctx:    context.Background(),
+	}
+
+	// -- meilisearch client --
+	client := meilisearch.NewClient(meilisearch.ClientConfig{
+		Host: "http://meilisearch:7700",
+	})
+
+	// -- create the index --
 	index := client.Index("players")
+	_, err := client.CreateIndex(&meilisearch.IndexConfig{
+		Uid: "players",
+	})
+
+	if err != nil {
+		handler.Logger.Error("%v", err)
+		return
+	}
+
+	// -- wait for meilisearch to initialize --
+	time.Sleep(5 * time.Second)
 
 	//construct a list of uuids
 	uuidList := []string{
@@ -79,8 +119,6 @@ func main() {
 		"9032ea59-caa1-4489-a167-c19a32f9771d",
 	}
 
-	apiHandler := api.Handler{}
-
 	limit := make(chan struct{}, 2)
 
 	//temporary initial sleep time for hao's machine
@@ -90,7 +128,7 @@ func main() {
 
 	increment := func() {
 		sleepTime++
-		fmt.Printf("incremented sleepTime: %d\n", sleepTime)
+		handler.Logger.Info("incremented sleepTime: %d", sleepTime)
 	}
 
 	wg := &sync.WaitGroup{}
@@ -101,26 +139,26 @@ func main() {
 
 			limit <- struct{}{}
 
-			go func(id string) {
+			go func(handler api.Handler, wg *sync.WaitGroup, id string) {
 				defer func() {
 					<-limit
 					wg.Done()
 				}()
 
 				//fetch the profile based on the uuid from mojang
-				code, profile, _, errs := apiHandler.FetchProfile(id)
+				code, profile, _, errs := handler.FetchProfile(id)
 
 				if len(errs) != 0 {
 					//TODO: Requeue for lookup again
 					for _, err := range errs {
-						fmt.Println(err)
+						handler.Logger.Error("%v", err)
 					}
 
 					return
 				}
 
 				if code == fiber.StatusTooManyRequests {
-					fmt.Println("429 received")
+					handler.Logger.Error("429 received!")
 
 					//after debounce
 					debounced(increment)
@@ -143,12 +181,12 @@ func main() {
 					if textureResponse.Textures.Skin.Url != "" {
 						splitString := strings.Split(textureResponse.Textures.Skin.Url, "/")
 						textureid := splitString[len(splitString)-1]
-						_, skinResponse, _, errs = apiHandler.FetchTexture(textureid)
+						_, skinResponse, _, errs = handler.FetchTexture(textureid)
 
 						if len(errs) != 0 {
 							//TODO: Requeue for lookup again
 							for _, err := range errs {
-								fmt.Println(err)
+								handler.Logger.Error("%v", err)
 							}
 
 							return
@@ -158,12 +196,12 @@ func main() {
 					if textureResponse.Textures.Cape.Url != "" {
 						splitString := strings.Split(textureResponse.Textures.Cape.Url, "/")
 						textureid := splitString[len(splitString)-1]
-						_, capeResponse, _, errs = apiHandler.FetchTexture(textureid)
+						_, capeResponse, _, errs = handler.FetchTexture(textureid)
 
 						if len(errs) != 0 {
 							//TODO: Requeue for lookup again
 							for _, err := range errs {
-								fmt.Println(err)
+								handler.Logger.Error("%v", err)
 							}
 
 							return
@@ -184,51 +222,59 @@ func main() {
 						},
 					}
 
-					//check if the doc differs from what is in meilisearch
-					searchRes, err := index.Search(profile.Id, &meilisearch.SearchRequest{
-						Limit: 1,
-					})
+					//check if the doc differs from redis
+					exists, item, _ := handler.CacheGet(fmt.Sprintf("scanner:%s", doc.Id))
 
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
+					if !exists {
+						//item does not exist in cache, put into cache and meilisearch
+						docJsonString, _ := json.Marshal(&doc)
+						err = handler.CachePut(fmt.Sprintf("scanner:%s", doc.Id), string(docJsonString), 0)
 
-					if len(searchRes.Hits) == 1 {
-						//document exists, check for differences before updating meilisearch
-						searchJsonString, _ := json.Marshal(searchRes.Hits[0])
-						foundDoc := &Document{}
-						_ = json.Unmarshal(searchJsonString, foundDoc)
-
-						if doc.Name != foundDoc.Name || doc.Textures.Skin.Data != foundDoc.Textures.Skin.Data || doc.Textures.Cape.Data != foundDoc.Textures.Cape.Data {
-							//updating doc to meilisearch, doc data differs from foundDoc
-							var docs = [1]Document{doc}
-
-							task, err := index.AddDocuments(docs)
-
-							if err != nil {
-								fmt.Println(err)
-								return
-							}
-
-							fmt.Printf("Updating doc (%s): %d\n", doc.Id, task.TaskUID)
+						if err != nil {
+							handler.Logger.Error("%v", err)
+							return
 						}
 
-					} else {
-						//adding doc to meilisearch, doc does not exist
+						//adding doc to meilisearch
 						var docs = [1]Document{doc}
 
 						task, err := index.AddDocuments(docs)
 
 						if err != nil {
-							fmt.Println(err)
+							handler.Logger.Error("%v", err)
 							return
 						}
 
-						fmt.Printf("Creating doc (%s): %d\n", doc.Id, task.TaskUID)
+						handler.Logger.Info("Creating doc (%s): %d", doc.Id, task.TaskUID)
+
+					} else {
+						//item exists in cache, check if differs and then put in meilisearch
+						foundDoc := &Document{}
+						_ = json.Unmarshal([]byte(item), foundDoc)
+
+						if doc.Name != foundDoc.Name || doc.Textures.Skin.Data != foundDoc.Textures.Skin.Data || doc.Textures.Cape.Data != foundDoc.Textures.Cape.Data {
+							//updating doc to cache and meilisearch, doc data differs from foundDoc
+							docJsonString, _ := json.Marshal(&doc)
+							err = handler.CachePut(fmt.Sprintf("scanner:%s", doc.Id), string(docJsonString), 0)
+
+							if err != nil {
+								handler.Logger.Error("%v", err)
+								return
+							}
+
+							var docs = [1]Document{doc}
+
+							task, err := index.AddDocuments(docs)
+
+							if err != nil {
+								handler.Logger.Error("%v", err)
+								return
+							}
+							handler.Logger.Info("Updating doc (%s): %d", doc.Id, task.TaskUID)
+						}
 					}
 				}
-			}(id)
+			}(handler, wg, id)
 
 			time.Sleep(time.Duration(sleepTime) * time.Millisecond)
 		}
