@@ -2,14 +2,20 @@ module bed.gg/profile-scanner/v2
 
 go 1.19
 
-require github.com/gofiber/fiber/v2 v2.39.0
+require (
+	github.com/bep/debounce v1.2.1
+	github.com/gofiber/fiber/v2 v2.39.0
+	github.com/meilisearch/meilisearch-go v0.21.1
+)
 
 require (
-	github.com/bep/debounce v1.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/go-redis/redis/v9 v9.0.0-rc.1 // indirect
+	github.com/golang-jwt/jwt/v4 v4.4.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
+	github.com/josharian/intern v1.0.0 // indirect
+	github.com/mailru/easyjson v0.7.7 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.23.0 // indirect
