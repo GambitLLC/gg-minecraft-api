@@ -36,5 +36,7 @@ services:
       - "6380:6379"
   meilisearch:
     image: getmeili/meilisearch:latest
+    volumes:
+      - ./data/meilisearch/:/meili_data/
     ports:
       - "7700:7700"
