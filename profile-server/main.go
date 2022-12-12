@@ -36,6 +36,7 @@ func main() {
 	var ipPool []net.IP
 
 	for _, ip := range config.Ip.Pool {
+		lg.Info("Registered IP: %s", ip)
 		ipPool = append(ipPool, net.ParseIP(ip))
 	}
 
