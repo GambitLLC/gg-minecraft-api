@@ -75,7 +75,7 @@ func main() {
 
 	// -- connect to redis --
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "redis-store:6379",
+		Addr:     "redis-store:6380",
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
@@ -98,6 +98,7 @@ func main() {
 	// -- meilisearch client --
 	client := meilisearch.NewClient(meilisearch.ClientConfig{
 		Host: "http://meilisearch:7700",
+		APIKey: "RIGHT_PARENTHESIS-ubr-Auc-NINE",
 	})
 
 	// -- create the index --

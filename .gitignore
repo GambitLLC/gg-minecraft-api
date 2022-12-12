@@ -1,4 +1,8 @@
 profile-scanner/data
-data/
+
 data/**
+!data/
+!data/meilisearch/
+!data/meilisearch/config.toml
+!data/nginx/
 !data/nginx/app.conf
