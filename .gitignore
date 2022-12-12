@@ -1,1 +1,4 @@
 profile-scanner/data
+data/
+data/**
+!data/nginx/app.conf
