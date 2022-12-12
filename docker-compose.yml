@@ -30,36 +30,40 @@ services:
       - ./data/certbot/www:/var/www/certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     restart: always
-
-#  profile-scanner:
-#    build:
-#      context: ./
-#      dockerfile: ./Scanner.Dockerfile
-#    image: gambitdev/bedgg-profile-scanner:latest
-#    depends_on:
-#      - profile-store
-#      - meilisearch
-#  profile-store:
-#    build:
-#      context: ./
-#      dockerfile: ./Store.Dockerfile
-#    image: gambitdev/bedgg-profile-store:latest
-#    ports:
-#      - "3000:8080"
-#    depends_on:
-#      - redis-store
+  profile-scanner:
+    build:
+      context: ./
+      dockerfile: ./Scanner.Dockerfile
+    image: gambitdev/bedgg-profile-scanner:latest
+    depends_on:
+      - profile-store
+      - meilisearch
+    network_mode: host
+    extra_hosts:
+      - "redis-store:127.0.0.1"
+      - "meilisearch:127.0.0.1"
+    restart: always
+  profile-store:
+    build:
+      context: ./
+      dockerfile: ./Store.Dockerfile
+    image: gambitdev/bedgg-profile-store:latest
+    ports:
+      - "3000:8080"
+    depends_on:
+      - redis-store
   redis:
     image: redis
     ports:
       - "6379:6379"
     restart: always
-#  redis-store:
-#    image: redis
-#    ports:
-#      - "6380:6379"
-#  meilisearch:
-#    image: getmeili/meilisearch:latest
-#    volumes:
-#      - ./data/meilisearch/:/meili_data/
-#    ports:
-#      - "7700:7700"
+  redis-store:
+    image: redis
+    ports:
+      - "6380:6379"
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    volumes:
+      - ./data/meilisearch/:/meili_data/
+    ports:
+      - "7700:7700"
