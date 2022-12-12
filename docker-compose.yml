@@ -5,11 +5,31 @@ services:
       context: ./
       dockerfile: ./Server.Dockerfile
     image: gambitdev/bedgg-minecraft-api:latest
-    #ports:
-    #  - "0.0.0.0:80:8080"
-    #depends_on:
-    #  - redis
+    depends_on:
+      - redis
     network_mode: host
+    extra_hosts:
+      - "redis:127.0.0.1"
+    restart: always
+  nginx:
+    image: nginx:1.23.2-alpine
+    depends_on:
+      - gg-minecraft-api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./data/nginx:/etc/nginx/conf.d
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    restart: always
 
 #  profile-scanner:
 #    build:
@@ -32,6 +52,7 @@ services:
     image: redis
     ports:
       - "6379:6379"
+    restart: always
 #  redis-store:
 #    image: redis
 #    ports:
@@ -42,13 +63,3 @@ services:
 #      - ./data/meilisearch/:/meili_data/
 #    ports:
 #      - "7700:7700"
-
-# networks:
-#   gg-network:
-#     driver: ipvlan
-#     driver_opts:
-#       parent: eth0
-#     ipam:
-#       config:
-#         - subnet: 10.0.0.0/24
-#           gateway: 10.0.0.254
