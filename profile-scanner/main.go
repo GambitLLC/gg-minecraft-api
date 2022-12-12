@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bed.gg/minecraft-api/v2/src/config"
 	"bed.gg/minecraft-api/v2/src/logger"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis/v9"
 	"go.uber.org/zap"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -77,6 +79,14 @@ func main() {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
+
+	// -- setup the ip config --
+	var ipPool []net.IP
+
+	for _, ip := range config.Ip.Pool {
+		lg.Info("Registered IP: %s", ip)
+		ipPool = append(ipPool, net.ParseIP(ip))
+	}
 
 	// -- create the api handler --
 	handler := api.Handler{
