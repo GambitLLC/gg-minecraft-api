@@ -10,6 +10,7 @@ services:
     network_mode: host
     extra_hosts:
       - "redis:127.0.0.1"
+      - "meilisearch:127.0.0.1"
     restart: always
   nginx:
     image: nginx:1.23.2-alpine

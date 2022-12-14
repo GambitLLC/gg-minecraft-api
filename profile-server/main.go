@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/meilisearch/meilisearch-go"
 	"net"
 
 	"bed.gg/minecraft-api/v2/src/api"
@@ -12,6 +13,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"go.uber.org/zap"
 )
+
+const MEILISEARCH_API_KEY = "RIGHT_PARENTHESIS-ubr-Auc-NINE"
 
 func main() {
 	// -- create a new logger --
@@ -32,6 +35,12 @@ func main() {
 		DB:       0,  // use default DB
 	})
 
+	// -- connect to meilisearch --
+	client := meilisearch.NewClient(meilisearch.ClientConfig{
+		Host:   "http://meilisearch:7700",
+		APIKey: MEILISEARCH_API_KEY,
+	})
+
 	// -- setup the ip config --
 	var ipPool []net.IP
 
@@ -42,11 +51,12 @@ func main() {
 
 	// -- create the api handler --
 	handler := &api.Handler{
-		Logger: lg,
-		Rdb:    rdb,
-		Ctx:    context.Background(),
-		IPPool: ipPool,
-		IpIdx:  0,
+		Logger:   lg,
+		Rdb:      rdb,
+		MSClient: client,
+		Ctx:      context.Background(),
+		IPPool:   ipPool,
+		IpIdx:    0,
 	}
 
 	// -- fiber app --
@@ -63,6 +73,7 @@ func main() {
 	app.Get("/profiles", handler.GetProfiles)
 	app.Get("/texture/:textureid", handler.GetTexture)
 	app.Get("/textures", handler.GetTextures)
+	app.Get("/searchKey", handler.GetSearchKey)
 
 	// -- start the server --
 	lg.Fatal("%s", app.Listen(":8080"))
