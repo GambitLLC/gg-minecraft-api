@@ -18,7 +18,7 @@ type StoreHandler struct {
 	api.Handler
 }
 
-func (h *StoreHandler) PostSignIn(c *fiber.Ctx) error {
+func (h *StoreHandler) GetSignIn(c *fiber.Ctx) error {
 	h.Logger.Info("%v", c.GetReqHeaders())
 
 	apiKey := c.GetReqHeaders()["X-Bedgg-Api-Key"]
@@ -86,7 +86,7 @@ func main() {
 	app := fiber.New()
 
 	// -- register routes --
-	app.Post("/signIn/:uuid", handler.PostSignIn)
+	app.Get("/signIn/:uuid", handler.GetSignIn)
 
 	// -- start the server --
 	lg.Fatal("%s", app.Listen(":8080"))
