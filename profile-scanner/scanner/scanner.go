@@ -217,18 +217,18 @@ func Scanner(h api.Handler, index *meilisearch.Index) {
 		select {
 		case priorityUUID := <-uuidPool.PriorityJobs:
 			//handle priority jobs first
-			h.Logger.Info("Priority Job: %s", priorityUUID)
+			//h.Logger.Info("Priority Job: %s", priorityUUID)
 			go handleJob(h, index, limit, debounced, increment, priorityUUID)
 		default:
 			//handle whichever job comes first
 			select {
 			case priorityUUID := <-uuidPool.PriorityJobs:
 				//handle priority job
-				h.Logger.Info("Priority Job: %s", priorityUUID)
+				//h.Logger.Info("Priority Job: %s", priorityUUID)
 				go handleJob(h, index, limit, debounced, increment, priorityUUID)
 			case uuid := <-uuidPool.Jobs:
 				//handle non-priority job
-				h.Logger.Info("Job: %s", uuid)
+				//h.Logger.Info("Job: %s", uuid)
 				go handleJob(h, index, limit, debounced, increment, uuid)
 			}
 		}
