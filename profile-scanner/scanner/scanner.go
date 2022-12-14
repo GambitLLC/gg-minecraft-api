@@ -194,7 +194,7 @@ func Scanner(h api.Handler, index *meilisearch.Index) {
 		pointer := uint64(0)
 
 		for {
-			keys, cursor, err := handler.Rdb.Scan(h.Ctx, pointer, "scanner:", 128).Result()
+			keys, cursor, err := handler.Rdb.Scan(h.Ctx, pointer, "scanner:*", 128).Result()
 
 			if err != nil {
 				h.Logger.Error("Scan Error: %v", err)
