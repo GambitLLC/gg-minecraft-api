@@ -19,6 +19,8 @@ type StoreHandler struct {
 }
 
 func (h *StoreHandler) PostSignIn(c *fiber.Ctx) error {
+	h.Logger.Info("%v", c.GetReqHeaders())
+
 	apiKey := c.GetReqHeaders()["x-bedgg-api-key"]
 
 	if apiKey != API_KEY {
