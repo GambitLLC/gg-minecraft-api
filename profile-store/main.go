@@ -19,7 +19,7 @@ type StoreHandler struct {
 }
 
 func (h *StoreHandler) PostSignIn(c *fiber.Ctx) error {
-	apiKey := c.Params("apiKey")
+	apiKey := c.GetReqHeaders()["x-bedgg-api-key"]
 
 	if apiKey != API_KEY {
 		h.Logger.Error("Incorrect API Key provided: %s", apiKey)
