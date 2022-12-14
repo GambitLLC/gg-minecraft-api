@@ -12,22 +12,31 @@ import (
 	"go.uber.org/zap"
 )
 
+const API_KEY = "RIGHT_BRACE-Gret-Hok-cech-ONE"
+
 type StoreHandler struct {
 	api.Handler
 }
 
-func (h *StoreHandler) PostSignUp(c *fiber.Ctx) error {
+func (h *StoreHandler) PostSignIn(c *fiber.Ctx) error {
+	apiKey := c.Params("apiKey")
+
+	if apiKey != API_KEY {
+		h.Logger.Error("Incorrect API Key provided: %s", apiKey)
+		return c.SendStatus(fiber.StatusUnauthorized)
+	}
+
 	playerUUID := c.Params("uuid")
 	remoteAddr := c.Context().Conn().RemoteAddr().String()
 
-	h.Logger.Info("%s POST /signUp/%s", remoteAddr, playerUUID)
+	h.Logger.Info("%s POST /signIn/%s", remoteAddr, playerUUID)
 
 	if api.IsValidUUID(playerUUID) {
-		//cache the UUID in the redis
-		err := h.Handler.CachePut(fmt.Sprintf("store:%s", playerUUID), "", 0)
+		//publish the new signup
+		err := h.Handler.Rdb.Publish(h.Handler.Ctx, "signIn", playerUUID).Err()
 
 		if err != nil {
-			h.Logger.Error("%v", err)
+			h.Logger.Error("SignUp Error: %v", err)
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
 
@@ -63,7 +72,7 @@ func main() {
 
 	// -- connect to redis --
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "redis-store:6380",
+		Addr:     "redis-store:6379",
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
@@ -75,7 +84,7 @@ func main() {
 	app := fiber.New()
 
 	// -- register routes --
-	app.Post("/signUp/:uuid", handler.PostSignUp)
+	app.Post("/signIn/:uuid", handler.PostSignIn)
 
 	// -- start the server --
 	lg.Fatal("%s", app.Listen(":8080"))
