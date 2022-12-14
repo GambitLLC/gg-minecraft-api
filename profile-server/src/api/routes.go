@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v9"
 	"github.com/gofiber/fiber/v2"
+	"github.com/meilisearch/meilisearch-go"
 	"time"
 )
 
@@ -365,4 +366,37 @@ func (h *Handler) GetTextures(c *fiber.Ctx) error {
 	c.Set(fiber.HeaderCacheControl, fmt.Sprintf("private, max-age=%d", int32(TTL.Seconds())))
 	c.Status(fiber.StatusOK)
 	return c.Send(out)
+}
+
+func (h *Handler) GetSearchKey(c *fiber.Ctx) error {
+	keys, err := h.MSClient.GetKeys(&meilisearch.KeysQuery{
+		Offset: 0,
+		Limit:  2,
+	})
+
+	if err != nil {
+		h.Logger.Error("Key Error: %v", err)
+		return c.SendStatus(fiber.StatusInternalServerError)
+	}
+
+	if len(keys.Results) == 2 {
+		//find the search api key
+		if keys.Results[0].Name == "Default Search API Key" {
+			//key found
+			c.Status(fiber.StatusOK)
+			return c.SendString(keys.Results[0].Key)
+		} else if keys.Results[1].Name == "Default Search API Key" {
+			//key found
+			c.Status(fiber.StatusOK)
+			return c.SendString(keys.Results[1].Key)
+		} else {
+			//key not found
+			h.Logger.Error("Could not find search key!")
+			return c.SendStatus(fiber.StatusInternalServerError)
+		}
+	} else {
+		//key not found
+		h.Logger.Error("Not Enough Keys Present: Expected 2, found %d", len(keys.Results))
+		return c.SendStatus(fiber.StatusInternalServerError)
+	}
 }

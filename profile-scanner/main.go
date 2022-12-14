@@ -88,18 +88,19 @@ func main() {
 		ipPool = append(ipPool, net.ParseIP(ip))
 	}
 
-	// -- create the api handler --
-	handler := api.Handler{
-		Logger: lg,
-		Rdb:    rdb,
-		Ctx:    context.Background(),
-	}
-
 	// -- meilisearch client --
 	client := meilisearch.NewClient(meilisearch.ClientConfig{
-		Host: "http://meilisearch:7700",
+		Host:   "http://meilisearch:7700",
 		APIKey: "RIGHT_PARENTHESIS-ubr-Auc-NINE",
 	})
+
+	// -- create the api handler --
+	handler := api.Handler{
+		Logger:   lg,
+		Rdb:      rdb,
+		MSClient: client,
+		Ctx:      context.Background(),
+	}
 
 	// -- create the index --
 	index := client.Index("players")

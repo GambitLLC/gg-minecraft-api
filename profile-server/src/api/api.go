@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/meilisearch/meilisearch-go"
 	"net"
 	"regexp"
 	"sync"
@@ -18,11 +19,12 @@ import (
 )
 
 type Handler struct {
-	Logger *logger.ZapLogger
-	Rdb    *redis.Client
-	Ctx    context.Context
-	IPPool []net.IP
-	IpIdx  uint32
+	Logger   *logger.ZapLogger
+	Rdb      *redis.Client
+	MSClient *meilisearch.Client
+	Ctx      context.Context
+	IPPool   []net.IP
+	IpIdx    uint32
 }
 
 type ProfileResponse struct {
